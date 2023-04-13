@@ -12,6 +12,8 @@ pub enum AstroPhiError {
     ParseInt(#[from] std::num::ParseIntError),
     #[error("ParseFloat error")]
     ParseFloat(#[from] std::num::ParseFloatError),
+    #[error("IO error")]
+    StdIO(#[from] std::io::Error),
 }
 
 impl IntoResponse for AstroPhiError {
@@ -20,6 +22,7 @@ impl IntoResponse for AstroPhiError {
             AstroPhiError::GPhoto2(error) => format!("{:?}", error.kind()),
             AstroPhiError::ParseInt(error) => error.to_string(),
             AstroPhiError::ParseFloat(error) => error.to_string(),
+            AstroPhiError::StdIO(error) => format!("{}", error.kind()),
         };
         (StatusCode::INTERNAL_SERVER_ERROR, error_text).into_response()
     }
