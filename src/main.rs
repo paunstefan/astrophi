@@ -36,10 +36,11 @@ async fn main() {
         .route("/info", get(camera_info))
         .route("/command", post(run_command));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
 
-    env::set_current_dir(HOME).unwrap();
+    // TODO: uncomment for release
+    //env::set_current_dir(HOME).unwrap();
 
     if !std::path::Path::new(TEMP_FILE).exists() {
         tracing::info!("Creating temporary file: {}", TEMP_FILE);

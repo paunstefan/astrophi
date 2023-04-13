@@ -1,1 +1,67 @@
-<h1>Hello astrophi</h1>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>AstroPhi</title>
+    <!-- <link rel="stylesheet" href="https://unpkg.com/98.css"> -->
+</head>
+
+<body>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <header>
+        <h1>AstroPhi</h1>
+    </header>
+    <button onclick="syncCamera()">Sync camera</button>
+    <br><br>
+    <fieldset>
+        <p style="display: inline">Exposure time: </p>
+        <div style="display: inline" id="exposure">0</div>
+        <br>
+        <p style="display: inline">ISO: </p>
+        <div style="display: inline" id="iso">0</div>
+        <br>
+        <p style="display: inline">Aperture: </p>
+        <div style="display: inline" id="iso">0</div>
+    </fieldset>
+    <hr>
+    <label for="frames_count">Frames number:</label>
+    <input type="number" id="frames_count" min="1">
+    <br>
+    <button onclick="shootFrames()">Shoot</button>
+    <br><br>
+    <fieldset>
+        <p style="display: inline">Series exposure time: </p>
+        <div style="display: inline" id="exposure_series">0</div>
+        <br>
+        <p style="display: inline">Total exposure time: </p>
+        <div style="display: inline" id="exposure_total">0</div>
+    </fieldset>
+    <hr>
+    <h3>Preview</h3>
+    <button onclick="preview()">Shoot preview</button>
+    <div>placeholder</div>
+    <hr>
+    <h3>Settings</h3>
+    <button onclick="reset()">Reset history</button>
+
+    <hr>
+    <footer></footer>
+</body>
+
+<script>
+    function syncCamera() {
+        console.log("Sync camera");
+    }
+    function syncCamera() {
+        console.log("Shoot frames");
+    }
+    function reset() {
+        console.log("reset");
+    }
+
+</script>
+
+</html>
