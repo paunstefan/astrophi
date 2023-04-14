@@ -34,7 +34,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/info", get(camera_info))
-        .route("/command", post(run_command));
+        .route("/command", post(run_command))
+        .route("/config", post(camera_config));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::debug!("listening on {}", addr);
@@ -78,6 +79,7 @@ pub struct CameraInfo {
     pub aperture: f32,
     pub exposure: f32,
     pub capturetarget: String,
+    pub total_frames: u32,
 }
 
 async fn camera_info() -> Result<Json<CameraInfo>, AstroPhiError> {
@@ -90,11 +92,12 @@ async fn camera_info() -> Result<Json<CameraInfo>, AstroPhiError> {
         .parse()?;
     tracing::debug!("Parsed ISO: {:?}", iso);
 
-    let exposure: f32 = camera
-        .config_key::<RadioWidget>("shutterspeed")
-        .wait()?
-        .choice()
-        .parse()?;
+    let exposure: f32 = parse_shutterspeed(
+        &camera
+            .config_key::<RadioWidget>("shutterspeed")
+            .wait()?
+            .choice(),
+    )?;
     tracing::debug!("Parsed shutterspeed: {:?}", exposure);
 
     let aperture: f32 = camera
@@ -112,14 +115,31 @@ async fn camera_info() -> Result<Json<CameraInfo>, AstroPhiError> {
         .choice();
     tracing::debug!("Parsed capturetarget: {:?}", capturetarget);
 
+    let total_frames = TOTAL_FRAMES.lock().unwrap();
+
     let info = CameraInfo {
         iso,
         aperture,
         exposure,
         capturetarget,
+        total_frames: *total_frames,
     };
 
     Ok(Json(info))
+}
+
+fn parse_shutterspeed(shutterspeed: &str) -> Result<f32, AstroPhiError> {
+    if shutterspeed.contains('/') {
+        shutterspeed
+            .split('/')
+            .map(|s| s.trim().parse::<f32>().unwrap())
+            .reduce(|a, b| a / b)
+            .ok_or(AstroPhiError::Internal)
+    } else {
+        shutterspeed
+            .parse()
+            .map_err(|e| AstroPhiError::ParseFloat(e))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -131,6 +151,7 @@ pub enum Command {
 }
 
 async fn run_command(Json(payload): Json<Command>) -> Result<Vec<u8>, AstroPhiError> {
+    println!("{:?}", payload);
     match payload {
         Command::Shoot { count } => {
             take_frames(count)?;
@@ -149,11 +170,15 @@ async fn run_command(Json(payload): Json<Command>) -> Result<Vec<u8>, AstroPhiEr
 }
 
 fn take_frames(count: u32) -> Result<(), AstroPhiError> {
+    if count == 0 {
+        tracing::error!("Trying to shoot 0 frames");
+        return Ok(());
+    }
     let camera = Context::new()?.autodetect_camera().wait()?;
     for _ in 0..count {
         let file = camera.capture_image().wait()?;
         tracing::info!("Captured image {}", file.name());
-        thread::sleep(time::Duration::from_millis(500));
+        thread::sleep(time::Duration::from_millis(100));
     }
     let mut file = OpenOptions::new()
         .write(true)
@@ -175,7 +200,36 @@ fn reset_total() -> Result<(), AstroPhiError> {
     let mut total_frames = TOTAL_FRAMES.lock().unwrap();
     *total_frames = 0;
     file.write_all((*total_frames).to_string().as_bytes())?;
-    tracing::info!("Resetted temp file");
+    tracing::info!("Reset temp file");
 
     Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum Config {
+    Set { object: String, value: String },
+    Get { object: String },
+}
+
+async fn camera_config(Json(payload): Json<Config>) -> Result<String, AstroPhiError> {
+    println!("{:?}", payload);
+
+    match payload {
+        Config::Set { object, value } => todo!(),
+        Config::Get { object } => todo!(),
+    }
+}
+
+fn set_config(object: String, value: String) -> Result<String, AstroPhiError> {
+    match object.as_str() {
+        "capturetarget" => todo!(),
+        _ => Err(AstroPhiError::Internal),
+    }
+}
+fn get_config(object: String) -> Result<String, AstroPhiError> {
+    match object.as_str() {
+        "capturetarget" => todo!(),
+        _ => Err(AstroPhiError::Internal),
+    }
 }

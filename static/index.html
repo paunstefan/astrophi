@@ -24,17 +24,20 @@
         <div style="display: inline" id="iso">0</div>
         <br>
         <p style="display: inline">Aperture: </p>
-        <div style="display: inline" id="iso">0</div>
+        <div style="display: inline" id="aperture">0</div>
     </fieldset>
     <hr>
     <label for="frames_count">Frames number:</label>
-    <input type="number" id="frames_count" min="1">
+    <input type="number" id="frames_count" min="1" onchange="framesChange()">
     <br>
     <button onclick="shootFrames()">Shoot</button>
     <br><br>
     <fieldset>
         <p style="display: inline">Series exposure time: </p>
         <div style="display: inline" id="exposure_series">0</div>
+        <br>
+        <p style="display: inline">Total frames: </p>
+        <div style="display: inline" id="frames_total">0</div>
         <br>
         <p style="display: inline">Total exposure time: </p>
         <div style="display: inline" id="exposure_total">0</div>
@@ -52,16 +55,89 @@
 </body>
 
 <script>
-    function syncCamera() {
+    let camera_info = { exposure: 0, iso: 0, aperture: 0 };
+    let total_frames = 0;
+    let synced = false;
+    async function syncCamera() {
         console.log("Sync camera");
+        const response = await fetch("/info");
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error syncing: " + cause);
+            return;
+        }
+        const jsonData = await response.json();
+        console.log(jsonData)
+        // TODO: check capturetarget and prompt change if necessary
+
+        camera_info.exposure = jsonData.exposure;
+        camera_info.iso = jsonData.iso;
+        camera_info.aperture = jsonData.aperture;
+        total_frames = jsonData.total_frames;
+        synced = true;
+
+        document.getElementById("exposure").innerHTML = camera_info.exposure;
+        document.getElementById("iso").innerHTML = camera_info.iso;
+        document.getElementById("aperture").innerHTML = camera_info.aperture;
+        document.getElementById("exposure_total").innerHTML = camera_info.exposure * total_frames;
+        document.getElementById("frames_total").innerHTML = total_frames;
+
     }
-    function syncCamera() {
+    async function shootFrames() {
+        if (!synced) {
+            alert("Error: Not synced!");
+            return;
+        }
         console.log("Shoot frames");
+        const count = parseInt(document.getElementById("frames_count").value);
+        console.log(count);
+        const data = { "type": "Shoot", "count": count };
+        const response = await fetch("/command", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error shooting: " + cause);
+            return;
+        }
+        // TODO: acually check how many were taken
+        total_frames += count;
+        document.getElementById("exposure_total").innerHTML = camera_info.exposure * total_frames;
+        document.getElementById("frames_total").innerHTML = total_frames;
     }
-    function reset() {
-        console.log("reset");
+    async function reset() {
+        console.log("Reset");
+        const data = { "type": "Reset" };
+        const response = await fetch("/command", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error resetting: " + cause);
+            return;
+        }
+        const blobData = await response.blob();
+        console.log(blobData);
+        document.getElementById("exposure_total").innerHTML = "0";
+        document.getElementById("frames_total").innerHTML = "0";
     }
 
+    async function framesChange() {
+        if (synced) {
+            document.getElementById("exposure_series").innerHTML = document.getElementById("frames_count").value * camera_info.exposure;
+        }
+    }
 </script>
 
 </html>

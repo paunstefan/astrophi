@@ -6,6 +6,8 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AstroPhiError {
+    #[error("Astrophi internal error")]
+    Internal,
     #[error("GPhoto2 error")]
     GPhoto2(#[from] gphoto2::Error),
     #[error("ParseInt error")]
@@ -23,6 +25,7 @@ impl IntoResponse for AstroPhiError {
             AstroPhiError::ParseInt(error) => error.to_string(),
             AstroPhiError::ParseFloat(error) => error.to_string(),
             AstroPhiError::StdIO(error) => format!("{}", error.kind()),
+            AstroPhiError::Internal => self.to_string(),
         };
         (StatusCode::INTERNAL_SERVER_ERROR, error_text).into_response()
     }
