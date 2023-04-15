@@ -6,6 +6,22 @@
     <meta content="utf-8" http-equiv="encoding">
     <title>AstroPhi</title>
     <!-- <link rel="stylesheet" href="https://unpkg.com/98.css"> -->
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        img {
+            padding: 0;
+            display: block;
+            margin: 0 auto;
+            max-height: 100%;
+            max-width: 100%;
+        }
+    </style>
 </head>
 
 <body>
@@ -45,7 +61,7 @@
     <hr>
     <h3>Preview</h3>
     <button onclick="preview()">Shoot preview</button>
-    <div>placeholder</div>
+    <div><img id="imagePreview" /></div>
     <hr>
     <h3>Settings</h3>
     <button onclick="reset()">Reset history</button>
@@ -137,6 +153,30 @@
         if (synced) {
             document.getElementById("exposure_series").innerHTML = document.getElementById("frames_count").value * camera_info.exposure;
         }
+    }
+
+    async function preview() {
+        console.log("Preview");
+        const data = { "type": "Preview" };
+        const response = await fetch("/command", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error resetting: " + cause);
+            return;
+        }
+        const blobData = await response.blob();
+        //blobData.type = "image/jpeg"
+        console.log(blobData);
+        previewImage = document.getElementById("imagePreview");
+        var objectURL = URL.createObjectURL(blobData);
+        previewImage.src = objectURL;
     }
 </script>
 

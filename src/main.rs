@@ -26,7 +26,7 @@ static TOTAL_FRAMES: Mutex<u32> = Mutex::new(0);
 #[tokio::main]
 async fn main() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(tracing::Level::INFO)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -161,11 +161,7 @@ async fn run_command(Json(payload): Json<Command>) -> Result<Vec<u8>, AstroPhiEr
             reset_total()?;
             Ok(vec![])
         }
-        Command::Preview => {
-            tracing::error!("Preview not yet available");
-
-            Ok(vec![])
-        }
+        Command::Preview => take_preview(),
     }
 }
 
@@ -203,6 +199,19 @@ fn reset_total() -> Result<(), AstroPhiError> {
     tracing::info!("Reset temp file");
 
     Ok(())
+}
+
+fn take_preview() -> Result<Vec<u8>, AstroPhiError> {
+    let context = Context::new()?;
+    let camera = context.autodetect_camera().wait()?;
+    let preview = camera.capture_preview().wait()?;
+    let buf = preview.get_data(&context).wait()?;
+    tracing::info!("Preview image taken");
+
+    // let mut file = File::open("/tmp/preview_image.jpg")?;
+    // let mut buf = Vec::new();
+    // file.read_to_end(&mut buf)?;
+    Ok(buf.to_vec())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
