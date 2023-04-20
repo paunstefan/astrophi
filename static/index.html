@@ -5,7 +5,6 @@
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
     <meta content="utf-8" http-equiv="encoding">
     <title>AstroPhi</title>
-    <!-- <link rel="stylesheet" href="https://unpkg.com/98.css"> -->
     <style>
         html,
         body {
@@ -66,6 +65,9 @@
     <h3>Settings</h3>
     <button onclick="reset()">Reset history</button>
 
+    <a href="/logs">Logs</a>
+
+
     <hr>
     <footer></footer>
 </body>
@@ -74,6 +76,7 @@
     let camera_info = { exposure: 0, iso: 0, aperture: 0 };
     let total_frames = 0;
     let synced = false;
+
     async function syncCamera() {
         console.log("Sync camera");
         const response = await fetch("/info");
@@ -91,7 +94,6 @@
         camera_info.iso = jsonData.iso;
         camera_info.aperture = jsonData.aperture;
         total_frames = jsonData.total_frames;
-        synced = true;
 
         document.getElementById("exposure").innerHTML = camera_info.exposure;
         document.getElementById("iso").innerHTML = camera_info.iso;
@@ -99,7 +101,30 @@
         document.getElementById("exposure_total").innerHTML = camera_info.exposure * total_frames;
         document.getElementById("frames_total").innerHTML = total_frames;
 
+        if (jsonData.capturetarget != "Memory card") {
+            if (confirm("Camera saves images only to internal RAM.\nWould you like to save to SD Card?") == true) {
+                const data = { "type": "Set", "object": "capturetarget", "value": "Memory card" };
+                const response = await fetch("/config", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    const cause = await response.text();
+                    console.log(cause)
+                    alert("Error configuring: " + cause);
+                    return;
+                }
+            } else {
+                return;
+            }
+        }
+        synced = true;
     }
+
     async function shootFrames() {
         if (!synced) {
             alert("Error: Not synced!");
@@ -127,6 +152,7 @@
         document.getElementById("exposure_total").innerHTML = camera_info.exposure * total_frames;
         document.getElementById("frames_total").innerHTML = total_frames;
     }
+
     async function reset() {
         console.log("Reset");
         const data = { "type": "Reset" };
@@ -143,13 +169,12 @@
             alert("Error resetting: " + cause);
             return;
         }
-        const blobData = await response.blob();
-        console.log(blobData);
+
         document.getElementById("exposure_total").innerHTML = "0";
         document.getElementById("frames_total").innerHTML = "0";
     }
 
-    async function framesChange() {
+    function framesChange() {
         if (synced) {
             document.getElementById("exposure_series").innerHTML = document.getElementById("frames_count").value * camera_info.exposure;
         }
@@ -157,6 +182,10 @@
 
     async function preview() {
         console.log("Preview");
+        if (!synced) {
+            alert("Error: Not synced!");
+            return;
+        }
         const data = { "type": "Preview" };
         const response = await fetch("/command", {
             method: "POST",
@@ -178,6 +207,7 @@
         var objectURL = URL.createObjectURL(blobData);
         previewImage.src = objectURL;
     }
+
 </script>
 
 </html>
