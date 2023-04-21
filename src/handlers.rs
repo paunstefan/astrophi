@@ -9,11 +9,13 @@ use std::{
 };
 use std::{thread, time};
 
+const HTML_FILE: &str = "/var/www/index.html";
+
 // Handler for the main page
 pub async fn root() -> Result<Html<String>, StatusCode> {
     tracing::info!("GET root");
 
-    let html = Html(fs::read_to_string("static/index.html").map_err(|_| StatusCode::NOT_FOUND)?);
+    let html = Html(fs::read_to_string(HTML_FILE).map_err(|_| StatusCode::NOT_FOUND)?);
     Ok(html)
 }
 
