@@ -104,6 +104,8 @@ pub enum Command {
     Shoot { count: u32 },
     Reset,
     Preview,
+    Solve,
+    Exposure,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

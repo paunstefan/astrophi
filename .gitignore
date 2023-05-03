@@ -1,4 +1,13 @@
 /target
 astrophi_temp
-preview_image.jpg
+*.jpg
+s*.png
+*.xyls
+*.axy
+*.corr
+*.match
+*.new
+*.rdls
+*.solved
+*.wcs
 astrophi_0.1.0.bb

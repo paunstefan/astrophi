@@ -3,13 +3,19 @@ use crate::{
 };
 use axum::{http::StatusCode, response::Html, Json};
 use gphoto2::{widget::RadioWidget, Context};
+use std::fs::File;
+use std::io::Read;
+use std::process;
+use std::time::Duration;
 use std::{
     fs::{self, OpenOptions},
     io::Write,
 };
 use std::{thread, time};
+use wait_timeout::ChildExt;
 
-const HTML_FILE: &str = "/var/www/index.html";
+//const HTML_FILE: &str = "/var/www/index.html";
+const HTML_FILE: &str = "static/index.html";
 
 // Handler for the main page
 pub async fn root() -> Result<Html<String>, StatusCode> {
@@ -92,6 +98,34 @@ pub async fn run_command(Json(payload): Json<Command>) -> Result<Vec<u8>, AstroP
             Ok(vec![])
         }
         Command::Preview => take_preview(),
+        Command::Solve => {
+            let capturetarget = get_config("capturetarget")?;
+            let imageformat = get_config("imageformat")?;
+
+            set_config("capturetarget", "Internal RAM")?;
+            set_config("imageformat", "Smaller JPEG")?;
+
+            let result = solve_plate();
+
+            set_config("capturetarget", &capturetarget)?;
+            set_config("imageformat", &imageformat)?;
+
+            result
+        }
+        Command::Exposure => {
+            let capturetarget = get_config("capturetarget")?;
+            let imageformat = get_config("imageformat")?;
+
+            set_config("capturetarget", "Internal RAM")?;
+            set_config("imageformat", "Smaller JPEG")?;
+
+            let result = take_exposure();
+
+            set_config("capturetarget", &capturetarget)?;
+            set_config("imageformat", &imageformat)?;
+
+            result
+        }
     }
 }
 
@@ -148,45 +182,109 @@ fn take_preview() -> Result<Vec<u8>, AstroPhiError> {
     Ok(buf.to_vec())
 }
 
+fn take_exposure() -> Result<Vec<u8>, AstroPhiError> {
+    let context = Context::new()?;
+    let camera = context.autodetect_camera().wait()?;
+
+    let file = camera.capture_image().wait()?;
+    let image = camera.fs().download(&file.folder(), &file.name()).wait()?;
+    let buf = image.get_data(&context).wait()?;
+
+    tracing::info!("Exposure taken");
+
+    Ok(buf.to_vec())
+}
+
+fn solve_plate() -> Result<Vec<u8>, AstroPhiError> {
+    let context = Context::new()?;
+    let camera = context.autodetect_camera().wait()?;
+
+    let file = camera.capture_image().wait()?;
+
+    let image = camera.fs().download(&file.folder(), &file.name()).wait()?;
+    let buf = image.get_data(&context).wait()?;
+
+    let mut file = fs::File::create("solve.jpg")?;
+    file.write_all(&buf)?;
+
+    tracing::info!("Exposure taken");
+    tracing::info!("Running astrometry");
+
+    let mut child = process::Command::new("solve-field")
+        .args(["--overwrite", "--downsample", "2", "solve.jpg"])
+        .env("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/usr/local/astrometry/bin")
+        .spawn()?;
+
+    let status_code = match child.wait_timeout(Duration::from_secs(180))? {
+        Some(status) => status.code(),
+        None => {
+            // child hasn't exited yet
+            child.kill()?;
+            child.wait()?;
+            None
+        }
+    };
+
+    if status_code != Some(0) {
+        tracing::error!("Astrometry failed");
+        return Err(AstroPhiError::Internal);
+    }
+
+    let mut file = File::open("solve-ngc.png")?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf)?;
+    tracing::info!("Solved plate");
+
+    Ok(buf.to_vec())
+}
+
 pub async fn camera_config(Json(payload): Json<Config>) -> Result<String, AstroPhiError> {
     tracing::info!("POST /config: {:?}", payload);
 
     match payload {
-        Config::Set { object, value } => set_config(object, value),
-        Config::Get { object } => get_config(object),
+        Config::Set { object, value } => set_config(&object, &value),
+        Config::Get { object } => get_config(&object),
     }
 }
 
-fn set_config(object: String, value: String) -> Result<String, AstroPhiError> {
+fn set_config(object: &str, value: &str) -> Result<String, AstroPhiError> {
     let camera = Context::new()?.autodetect_camera().wait()?;
 
-    match object.as_str() {
+    match object {
         "capturetarget" => {
             let capturetarget = camera.config_key::<RadioWidget>("capturetarget").wait()?;
-            capturetarget.set_choice(&value)?;
+            capturetarget.set_choice(value)?;
             camera.set_config(&capturetarget).wait()?;
-            tracing::info!("Config SET: {}:{}", object, value);
-
-            Ok(format!("OK {}:{}", object, value))
         }
-        _ => Err(AstroPhiError::Internal),
+        "imageformat" => {
+            let imageformat = camera.config_key::<RadioWidget>("imageformat").wait()?;
+            imageformat.set_choice(value)?;
+            camera.set_config(&imageformat).wait()?;
+        }
+        _ => return Err(AstroPhiError::Internal),
     }
+
+    tracing::info!("Config SET: {}:{}", object, value);
+    Ok(format!("OK {}:{}", object, value))
 }
-fn get_config(object: String) -> Result<String, AstroPhiError> {
+
+fn get_config(object: &str) -> Result<String, AstroPhiError> {
     let camera = Context::new()?.autodetect_camera().wait()?;
 
-    match object.as_str() {
-        "capturetarget" => {
-            let capturetarget = camera
-                .config_key::<RadioWidget>("capturetarget")
-                .wait()?
-                .choice();
-            tracing::info!("Config GET: {}:{}", object, capturetarget);
+    let config = match object {
+        "capturetarget" => camera
+            .config_key::<RadioWidget>("capturetarget")
+            .wait()?
+            .choice(),
+        "imageformat" => camera
+            .config_key::<RadioWidget>("imageformat")
+            .wait()?
+            .choice(),
+        _ => return Err(AstroPhiError::Internal),
+    };
 
-            Ok(capturetarget)
-        }
-        _ => Err(AstroPhiError::Internal),
-    }
+    tracing::info!("Config GET: {}:{}", object, config);
+    Ok(config)
 }
 
 pub async fn get_logs() -> Result<String, StatusCode> {

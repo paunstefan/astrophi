@@ -60,7 +60,12 @@
     <hr>
     <h3>Preview</h3>
     <button onclick="preview()">Shoot preview</button>
+    <button onclick="exposure()">Shoot exposure</button>
     <div><img id="imagePreview" /></div>
+    <hr>
+    <h3>Astrometry</h3>
+    <button onclick="solve_plate()">Run</button>
+    <div><img id="astrometryResult" /></div>
     <hr>
     <h3>Settings</h3>
     <button onclick="reset()">Reset history</button>
@@ -204,6 +209,62 @@
         //blobData.type = "image/jpeg"
         console.log(blobData);
         previewImage = document.getElementById("imagePreview");
+        var objectURL = URL.createObjectURL(blobData);
+        previewImage.src = objectURL;
+    }
+
+    async function exposure() {
+        console.log("Exposure");
+        if (!synced) {
+            alert("Error: Not synced!");
+            return;
+        }
+        const data = { "type": "Exposure" };
+        const response = await fetch("/command", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error resetting: " + cause);
+            return;
+        }
+        const blobData = await response.blob();
+        //blobData.type = "image/jpeg"
+        console.log(blobData);
+        previewImage = document.getElementById("imagePreview");
+        var objectURL = URL.createObjectURL(blobData);
+        previewImage.src = objectURL;
+    }
+
+    async function solve_plate() {
+        console.log("Solving plate");
+        if (!synced) {
+            alert("Error: Not synced!");
+            return;
+        }
+        const data = { "type": "Solve" };
+        const response = await fetch("/command", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const cause = await response.text();
+            console.log(cause)
+            alert("Error resetting: " + cause);
+            return;
+        }
+        const blobData = await response.blob();
+        //blobData.type = "image/jpeg"
+        console.log(blobData);
+        previewImage = document.getElementById("astrometryResult");
         var objectURL = URL.createObjectURL(blobData);
         previewImage.src = objectURL;
     }
