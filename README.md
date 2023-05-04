@@ -10,6 +10,8 @@ AstroPhi can be used to simplify the operation of a camera when doing astrophoto
 The main feature is to work as an intervalometer that also calculates the total exposure time and the
 number of frames.
 
+Before starting you need to move the file `static/index.html` to the `/var/www/` directory.
+
 To start the program run the following command:
 ```
 astrophi [work_directory] [port]

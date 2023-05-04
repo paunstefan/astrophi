@@ -11,3 +11,4 @@ s*.png
 *.solved
 *.wcs
 astrophi_0.1.0.bb
+*.log

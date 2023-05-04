@@ -1,6 +1,5 @@
-use crate::{
-    error::AstroPhiError, CameraInfo, Command, Config, LOG_DIR, LOG_FILE, TEMP_FILE, TOTAL_FRAMES,
-};
+use crate::WORK_DIR;
+use crate::{error::AstroPhiError, CameraInfo, Command, Config, LOG_FILE, TEMP_FILE, TOTAL_FRAMES};
 use axum::{http::StatusCode, response::Html, Json};
 use gphoto2::{widget::RadioWidget, Context};
 use std::fs::File;
@@ -14,8 +13,8 @@ use std::{
 use std::{thread, time};
 use wait_timeout::ChildExt;
 
-//const HTML_FILE: &str = "/var/www/index.html";
-const HTML_FILE: &str = "static/index.html";
+const HTML_FILE: &str = "/var/www/index.html";
+//const HTML_FILE: &str = "static/index.html";
 
 // Handler for the main page
 pub async fn root() -> Result<Html<String>, StatusCode> {
@@ -290,7 +289,8 @@ fn get_config(object: &str) -> Result<String, AstroPhiError> {
 pub async fn get_logs() -> Result<String, StatusCode> {
     tracing::info!("GET /logs");
 
-    let logs = fs::read_to_string(format!("{}/{}", LOG_DIR, LOG_FILE))
+    let work_dir = WORK_DIR.lock().unwrap();
+    let logs = fs::read_to_string(format!("{}/{}", *work_dir, LOG_FILE))
         .map_err(|_| StatusCode::NOT_FOUND)?;
     Ok(logs)
 }

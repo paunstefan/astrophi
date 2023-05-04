@@ -15,7 +15,6 @@ use std::{
 mod error;
 mod handlers;
 
-pub const LOG_DIR: &str = "/var/log";
 pub const LOG_FILE: &str = "astrophi.log";
 pub const TEMP_FILE: &str = "./astrophi_temp";
 
@@ -39,8 +38,7 @@ async fn main() {
         let mut work_dir = WORK_DIR.lock().unwrap();
         *work_dir = Box::leak(args[1].clone().into_boxed_str());
     }
-
-    let file_appender = tracing_appender::rolling::never(LOG_DIR, LOG_FILE);
+    let file_appender = tracing_appender::rolling::never(&args[1], LOG_FILE);
 
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
